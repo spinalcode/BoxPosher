@@ -1,0 +1,91 @@
+#define levWidth 128
+#define levHeight 128
+#define tileSize 32
+#define STEPSIZE 2
+#define WALKSPEED 8
+
+#define FLOOR 0
+#define WALL 1
+#define BUTTON 4
+
+int xScroll = 0;
+int yScroll = 0;
+int numButtons;
+int boxesOnButtons;
+int levNum;
+DigitalOut backlight = DigitalOut(P2_2);
+int lightCount=0;
+int bright = 255;
+uint8_t moveHistory[1024]; // 1kb of undo data
+int moveNumber;
+int gameMode=0;
+char tempText[512];
+int totalNumberOfLevels;
+int totalNumberOfWorlds;
+
+uint8_t curLevel[levWidth*levHeight];
+uint8_t guiBG[27*22]; // GUI background layer
+uint8_t guiLineHasText[22];
+
+float intro_timer = 0;
+
+long int fpsCount;
+long int fpsCounter;
+long int lastMillis;
+
+class GameCookie : public Pokitto::Cookie {
+public:
+    int level;
+    int volume=10;
+};
+/* create instance */
+GameCookie cookie;
+
+#ifndef POK_SIM
+// set hardware volume quite low
+SoftwareI2C swvolpot(P0_4, P0_5); //swapped SDA,SCL
+#endif
+
+struct TITLESCREEN_STUFF{
+    int px;
+    int py;
+    int frm;
+    bool dir=0;
+    bool movingBox;
+    uint8_t boxNum;
+} ts;
+
+struct PLAYER_DATA {
+    int x;  // x postition
+    int y;  // y position
+    int steps;
+    int walking;
+    int direction;
+    int stepFrame;
+} player;
+
+struct BOX_DATA {
+    int x;  // x postition
+    int y;  // y position
+    int steps;
+    bool walking;
+    int direction;
+    int frame;
+} boxes[40];
+int numBoxes = 0;
+int currentBox = 0; // which box is currently moving
+
+// for my own sprite renderer
+#define NUMSPRITES 48
+struct SPRITE_DATA {
+    const uint16_t *paletteData; // palette data
+    const uint8_t *imageData; // image data
+    int x;  // x postition
+    int y;  // y position
+    int hFlip;
+    int offset; // tile render pixel offset
+    uint8_t bit;
+} sprites[NUMSPRITES];
+int spriteCount = 0;
+int spriteLine[176];
+
