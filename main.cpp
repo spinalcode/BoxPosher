@@ -501,8 +501,16 @@ void titleScreen(){
   [__]  [____]  [__]  [_____]     [_____] \___]\____][__]\_][_____][_____][__]__]
 */
 
+    int IT = (int)intro_timer;
+
+    // horizon images
+    for(int t=0; t<7; t++){
+        drawSprite(t*32, 72, horizon[t], horizon_pal, 0, 8);
+    }
+
+
     int midScreen = 72; // 88-16
-    if(intro_timer <= 80){
+    if(IT <= 80){
         ts.px = easeDirect(intro_timer, -64, 63, 80);
         ts.py=88;
         if(ts.dir==0){
@@ -525,13 +533,13 @@ void titleScreen(){
     }
 
     bool standStill = 0;
-    if(intro_timer >80 && intro_timer <100) standStill = 1;
-    if((int)intro_timer == 100) ts.movingBox = 1- ts.movingBox;
+    if(IT >80 && IT <100) standStill = 1;
+    if(IT == 100) ts.movingBox = 1- ts.movingBox;
     
     guiPrint(7,6, "Curtis Nerdly");
     guiPrint(5,8, "Warehouse Manager");
 
-    if(intro_timer >=100 && intro_timer <180){
+    if(IT >=100 && IT <180){
         ts.px = easeDirect(intro_timer - 100, -64, 63, 80);
         if(ts.dir==0){ // 62
             drawSprite(midScreen-72-ts.px, ts.py, hero_stack[2], hero_stack_pal, 0, 8); // Player
@@ -570,7 +578,7 @@ void titleScreen(){
     }
 
 
-	if (intro_timer >=200){ // was 180
+	if (IT >=200){ // was 180
 		intro_timer=0;
         //if(ts.title_item==4){
         //    ts.title_item=0;
