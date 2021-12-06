@@ -12,7 +12,13 @@ int xScroll = 0;
 int yScroll = 0;
 int numButtons;
 int boxesOnButtons;
+
 int levNum;
+int levToLoad;
+int stLev=0;
+int levCursorX;
+int levCursorY;
+
 DigitalOut backlight = DigitalOut(P2_2);
 int lightCount=0;
 int bright = 255;
@@ -28,6 +34,10 @@ uint8_t guiBG[27*22]; // GUI background layer
 uint8_t guiLineHasText[22];
 
 float intro_timer = 0;
+int IT=0;
+bool okToChangeBoxState = true;
+
+bool gamePaused = false;
 
 long int fpsCount;
 long int fpsCounter;

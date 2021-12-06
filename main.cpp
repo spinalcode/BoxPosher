@@ -16,7 +16,6 @@
 
 // print text
 void guiPrint(char x, char y, const char* text) {
-//  guiLineHasText[y] = 1;
   uint8_t numChars = strlen(text);
   int charPos = x + 27 * y;
   for (int t = 0; t < numChars;) {
@@ -24,6 +23,35 @@ void guiPrint(char x, char y, const char* text) {
     guiBG[charPos++] = text[t++];
   }
 }
+
+void drawMenu(char x, char y, char x1, char y1) {
+
+
+    for(int yy = y; yy <= y1; yy++){
+        int yCount = 27*yy;
+        for(int xx = x; xx <= x1; xx++){
+            if(yy==y){
+                guiBG[xx + yCount] = 2;
+            }else if(yy==y1){
+                guiBG[xx + yCount] = 5;
+            }else{
+                guiBG[xx + yCount] = 9;
+            }
+            if(xx==x){
+                guiBG[xx + yCount] = 7;
+            }else if(xx==x1){
+                guiBG[xx + yCount] = 8;
+            }
+            guiLineHasText[yy] = 2;
+        }
+    }
+
+    guiBG[x +27*y ] = 1;
+    guiBG[x1+27*y ] = 3;
+    guiBG[x1+27*y1] = 6;
+    guiBG[x +27*y1] = 4;
+}
+
 
 #include "screen.h"
 
@@ -152,8 +180,8 @@ void loadSokLev(int lev){
                                 curLevel[ldOffset+x+levWidth*(ldOffset+y)] = 3;
                                 boxes[numBoxes].x = tileSize * (x+ldOffset);
                                 boxes[numBoxes].y = tileSize * (y+ldOffset);
-                                boxes[numBoxes].frame = boxNum++; 
-                                if(boxNum > 4) boxNum=0;
+                                boxes[numBoxes].frame = random(8);//boxNum++; 
+                                //if(boxNum > 4) boxNum=0;
                                 //boxNum = boxNum &7;////random(5);
                                 numBoxes++;
                                 break;
@@ -161,8 +189,8 @@ void loadSokLev(int lev){
                                 curLevel[ldOffset+x+levWidth*(ldOffset+y)] = 4;
                                 boxes[numBoxes].x = tileSize * (x+ldOffset);
                                 boxes[numBoxes].y = tileSize * (y+ldOffset);
-                                boxes[numBoxes].frame = boxNum++; 
-                                if(boxNum > 4) boxNum=0;
+                                boxes[numBoxes].frame = random(8);//boxNum++; 
+                                //if(boxNum > 4) boxNum=0;
                                 //boxNum = boxNum &7;////random(5);
                                 numBoxes++;
                                 numButtons++;
@@ -501,16 +529,15 @@ void titleScreen(){
   [__]  [____]  [__]  [_____]     [_____] \___]\____][__]\_][_____][_____][__]__]
 */
 
-    int IT = (int)intro_timer;
-
-    // horizon images
+    int midScreen = 72; // 88-16
+     // horizon images
     for(int t=0; t<7; t++){
         drawSprite(t*32, 72, horizon[t], horizon_pal, 0, 8);
     }
+    guiPrint(7,6, "Curtis Nerdly");
+    guiPrint(5,8, "Warehouse Manager");
 
-
-    int midScreen = 72; // 88-16
-    if(IT <= 80){
+   if(intro_timer <= 80){
         ts.px = easeDirect(intro_timer, -64, 63, 80);
         ts.py=88;
         if(ts.dir==0){
@@ -533,20 +560,17 @@ void titleScreen(){
     }
 
     bool standStill = 0;
-    if(IT >80 && IT <100) standStill = 1;
-    if(IT == 100) ts.movingBox = 1- ts.movingBox;
-    
-    guiPrint(7,6, "Curtis Nerdly");
-    guiPrint(5,8, "Warehouse Manager");
+    if(intro_timer >80 && intro_timer <100) standStill = 1;
 
-    if(IT >=100 && IT <180){
+
+    if(intro_timer >=100 && intro_timer <180){
         ts.px = easeDirect(intro_timer - 100, -64, 63, 80);
         if(ts.dir==0){ // 62
-            drawSprite(midScreen-72-ts.px, ts.py, hero_stack[2], hero_stack_pal, 0, 8); // Player
-            drawSprite(midScreen-72-ts.px + 10, ts.py+21, stacker[0], stacker_pal, 0, 8); // truck
-            drawSprite(midScreen-72-ts.px + 42, ts.py+21, stacker[1], stacker_pal, 0, 8); // truck
+            drawSprite(midScreen-74-ts.px, ts.py, hero_stack[2], hero_stack_pal, 0, 8); // Player
+            drawSprite(midScreen-74-ts.px + 10, ts.py+21, stacker[0], stacker_pal, 0, 8); // truck
+            drawSprite(midScreen-74-ts.px + 42, ts.py+21, stacker[1], stacker_pal, 0, 8); // truck
             if(ts.movingBox){
-                drawSprite(midScreen-72-ts.px+32, ts.py+4, box[ts.boxNum], box_pal, 0, 8); // Box
+                drawSprite(midScreen-74-ts.px+32, ts.py+4, box[ts.boxNum], box_pal, 0, 8); // Box
             }
         }else{//126
             // right to left
@@ -578,29 +602,43 @@ void titleScreen(){
     }
 
 
-	if (IT >=200){ // was 180
+	if (intro_timer >=200){ // was 180
 		intro_timer=0;
         //if(ts.title_item==4){
         //    ts.title_item=0;
         //    ts.holdItem = random(4);
         //}
         ts.dir = (random(100)<50 ? 0 : 1);
-        if(ts.px < 0 || ts.px > 200){
-            ts.boxNum = random(5);
+        if(ts.movingBox){
+            ts.boxNum = random(7);
         }
 	}
-/*
-    drawSprite(78, 56, crate[0], crate_pal, 0, 8);
-    drawSprite(110, 56, crate[1], crate_pal, 0, 8);
-    drawSprite(78, 88, crate[2], crate_pal, 0, 8);
-    drawSprite(110, 88, crate[3], crate_pal, 0, 8);
-*/
+
     if(_A_But[RELEASED]){
+        // grab the current highest level unlocked
+        levNum=1;
+        cookie.loadCookie();
+        levNum = cookie.level;
+        if(levNum <1)levNum=1;
+        levToLoad = levNum;
         gameMode=2;
         Pokitto::Display::lineFillers[0] = myBGFiller;
     }
-    intro_timer+=.33;//(.33 * (50/fpsCount)); // animation is based on 50fps.
+    //if(++IT>=3){
+        //IT=0;
+        intro_timer += 0.33;//(.33 * (50/fpsCount)); // animation is based on 50fps.
+        if(okToChangeBoxState){
+            if((int)intro_timer == 100){
+                ts.movingBox = 1- ts.movingBox;
+                okToChangeBoxState = false;
+            }
+        }else{
+            if((int)intro_timer == 1) okToChangeBoxState = true;
+        }
+    //}
 }
+
+
 
 void initTitleScreen(){
     ts.px=0;
@@ -608,24 +646,83 @@ void initTitleScreen(){
     ts.frm=0;
     gameMode=3;
     intro_timer = 0; // for timing animations etc.
+    PS::playMusicStream("/boxpusher/binky.pcm"); // titlescreen
+}
+
+void worldSelect(){
+
+    sprintf(tempText,"%02d",stLev);
+    guiPrint(0, 2, tempText);
+
+    drawSprite(78, 56, crate[0], crate_pal, 0, 8);
+    drawSprite(110, 56, crate[1], crate_pal, 0, 8);
+    drawSprite(78, 88, crate[2], crate_pal, 0, 8);
+    drawSprite(110, 88, crate[3], crate_pal, 0, 8);
+
+
+    if(_Right_But[NEW]){
+        stLev += 1;
+        if(stLev > levNum/12) stLev = levNum/12;
+    }
+
+    if(_Left_But[NEW]){
+        stLev -= 1;
+        if(stLev < 0) stLev = 0;
+    }
+
+    if(_A_But[RELEASED]){
+        gameMode=4;
+    }
+    
 }
 
 void levelSelect(){
     
-    guiPrint(0,4, "Select Level");
+    //guiPrint(0,4, "Select Level");
+    sprintf(tempText,"%002d",levNum);
+    guiPrint(0, 2, tempText);
+
     int x=0,y=0;
     for(int t=0; t<12; t++){
-        drawSprite((x*48)+22, (y*48)+16, smlcrate[0], smlcrate_pal, 0, 8);
+        int crtFrm = 0;
+        if((stLev*12)+t < levNum) crtFrm = 1;
+        drawSprite((x*48)+24, (y*48)+16, smlcrate[crtFrm], smlcrate_pal, 0, 8);
+        sprintf(tempText,"%02d",(stLev*12)+t+1);
+        guiPrint(4+x*6, 4+y*6, tempText);
         if(++x==4){y++; x=0;}
     }
 
+    drawSprite(24+levCursorX * 48, 16+levCursorY*48, cursor, cursor_pal, 0, 8);
+
+    if(_Up_But[NEW]){
+        levCursorY--;
+        if(levCursorY < 0) levCursorY = 0;
+    }
+
+    if(_Down_But[NEW]){
+        levCursorY++;
+        if(levCursorY > 2) levCursorY = 2;
+    }
+
+    if(_Right_But[NEW]){
+        levCursorX++;
+        if(levCursorX > 3) levCursorX = 3;
+    }
+
+    if(_Left_But[NEW]){
+        levCursorX--;
+        if(levCursorX < 0) levCursorX = 0;
+    }
+
+
     if(_A_But[RELEASED]){
         gameMode=1;
-        levNum=1;
-        cookie.loadCookie();
-        levNum = cookie.level;
-        if(levNum <1)levNum=1;
+        PS::playMusicStream("/boxpusher/splat.pcm"); // main music
         loadSokLev(levNum);
+    }
+
+    if(_B_But[RELEASED]){
+        gameMode=2;
     }
     
 }
@@ -668,7 +765,8 @@ int main() {
         initTimer(32000); // for screen fades
     #endif
     
-    PS::playMusicStream("/boxpusher/splat.pcm");
+//    PS::playMusicStream("/boxpusher/binky.pcm"); // titlescreen
+//    PS::playMusicStream("/boxpusher/splat.pcm"); // main music
 
     gameMode = 0;
 
@@ -686,32 +784,44 @@ int main() {
         for(int t=0; t<22; t++){
             guiLineHasText[t] = 0;
         }
+
  
         switch(gameMode){
             case 0:
                 initTitleScreen();
             break;
             case 1:
-                playLevel();
+                if(gamePaused == false){
+                    playLevel();
+                }
                 sprintf(tempText,"Moves [%03d] ",moveNumber);
                 guiPrint(0,1, tempText);
                 sprintf(tempText,"Level [%03d] ",levNum);
                 guiPrint(0,2, tempText);
                 if(_C_But[RELEASED]){
-                    gameMode=0;
+                    gamePaused = 1-gamePaused;
                 }
             break;
             case 2:
-                levelSelect();
+                worldSelect();
             break;
             case 3:
                 titleScreen();
             break;
+            case 4:
+                levelSelect();
+            break;
         }
+
+        if(gamePaused==true){
+            // paused menu goes here.
+        }
+
         
         sprintf(tempText,"  FPS [%03d] ",fpsCount);
         guiPrint(0,0, tempText);
 
+ 
         if(PC::getTime() >= lastMillis+1000){
             lastMillis = PC::getTime();
             fpsCount = fpsCounter;

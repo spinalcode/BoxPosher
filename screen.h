@@ -1,3 +1,11 @@
+uint16_t alphaBlendRGB565(uint32_t fg, uint32_t bg, uint8_t alpha) {
+
+    fg = (fg | fg << 16) & 0x07e0f81f;
+    bg = (bg | bg << 16) & 0x07e0f81f;
+    bg += (fg - bg) * alpha >> 5;
+    bg &= 0x07e0f81f;
+        return (uint16_t)(bg | bg >> 16);
+}
 
 void clearText(){
     for(int t=0; t<594; t++){
@@ -98,23 +106,68 @@ inline void GUILine(std::uint8_t* line, std::uint32_t y, bool skip){
     uint8_t tl = y/8;
     if(guiLineHasText[tl]==0) return;
 
-    uint32_t x = 0;
-    uint32_t tileIndex = tl * 27;
-    uint32_t lineOffset;
-    uint32_t alpha;
-    uint32_t temp;
-    auto &tileRef = guiFont[0];
-    auto scanLine = &Pokitto::Display::palette[32]; // start 32 pixels in because of underflow
-
-    for(int d=0; d<27; d++){
-        lineOffset = 2 + ((y&7)*4) + guiBG[tileIndex++]*34;
-        for(int c=0; c<4; c++){
-            temp = tileRef[lineOffset]>>4;
-            if(temp) scanLine[x] = guiFont_pal[temp];
-            x++;
-            temp = tileRef[lineOffset++]&15;
-            if(temp) scanLine[x] = guiFont_pal[temp];
-            x++;
+    int yVal = 2 + ((y&7)*4);
+    if(guiLineHasText[tl]==1){
+        uint32_t x = 0;
+        uint32_t tileIndex = tl * 27;
+        uint32_t lineOffset;
+        uint32_t alpha = 16;
+        uint32_t temp;
+        auto &tileRef = guiFont[0];
+        auto scanLine = &Pokitto::Display::palette[32]; // start 32 pixels in because of underflow
+        for(int d=0; d<27; d++){
+            lineOffset = yVal + guiBG[tileIndex++]*34;
+            if(guiBG[tileIndex-1]){
+                #define innerLoop()\
+                    temp = tileRef[lineOffset]>>4;\
+                    if(temp){ scanLine[x] = guiFont_pal[temp]; }\
+                    x++;\
+                    temp = tileRef[lineOffset++]&15;\
+                    if(temp){ scanLine[x] = guiFont_pal[temp]; }\
+                    x++;
+    
+                innerLoop();
+                innerLoop();
+                innerLoop();
+                innerLoop();
+            }else{
+                x+=8;
+            }
+        }
+    }else{
+        uint32_t x = 0;
+        uint32_t tileIndex = tl * 27;
+        uint32_t lineOffset;
+        uint32_t alpha = 16;
+        uint32_t temp;
+        auto &tileRef = guiFont[0];
+        auto scanLine = &Pokitto::Display::palette[32]; // start 32 pixels in because of underflow
+        for(int d=0; d<27; d++){
+            lineOffset = yVal + guiBG[tileIndex++]*34;
+            if(guiBG[tileIndex-1]){
+                #define innerLoopT()\
+                    temp = tileRef[lineOffset]>>4;\
+                    if(temp==0){\
+                        scanLine[x] = alphaBlendRGB565(0x07FF, scanLine[x], alpha);\
+                    }else if(temp){\
+                        scanLine[x] = guiFont_pal[temp];\
+                    }\
+                    x++;\
+                    temp = tileRef[lineOffset++]&15;\
+                    if(temp==0){\
+                        scanLine[x] = alphaBlendRGB565(0x07FF, scanLine[x], alpha);\
+                    }else if(temp){\
+                        scanLine[x] = guiFont_pal[temp];\
+                    }\
+                    x++;
+                
+                innerLoopT();
+                innerLoopT();
+                innerLoopT();
+                innerLoopT();
+            }else{
+                x+=8;
+            }
         }
     }
 }
