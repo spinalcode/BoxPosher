@@ -50,6 +50,7 @@ public:
 };
 /* create instance */
 GameCookie cookie;
+int currentLevel=0;
 
 #ifndef POK_SIM
 // set hardware volume quite low

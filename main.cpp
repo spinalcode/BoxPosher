@@ -214,8 +214,10 @@ void loadSokLev(int lev){
             } // if read file
         } // if space < 2
         fr.close();
-        cookie.level = lev;
-        cookie.saveCookie();
+        if(lev>cookie.level){
+            cookie.level = lev;
+            cookie.saveCookie();
+        }
 
     } // if file open
     player.direction = 1; // face forward
@@ -615,12 +617,6 @@ void titleScreen(){
 	}
 
     if(_A_But[RELEASED]){
-        // grab the current highest level unlocked
-        levNum=1;
-        cookie.loadCookie();
-        levNum = cookie.level;
-        if(levNum <1)levNum=1;
-        levToLoad = levNum;
         gameMode=2;
         Pokitto::Display::lineFillers[0] = myBGFiller;
     }
@@ -647,12 +643,19 @@ void initTitleScreen(){
     gameMode=3;
     intro_timer = 0; // for timing animations etc.
     PS::playMusicStream("/boxpusher/binky.pcm"); // titlescreen
+
+    // grab the current highest level unlocked
+    levNum=1;
+    cookie.loadCookie();
+    levNum = cookie.level;
+    if(levNum <1)levNum=1;
+    
 }
 
 void worldSelect(){
 
     sprintf(tempText,"%02d",stLev);
-    guiPrint(0, 2, tempText);
+    guiPrint(13, 15, tempText);
 
     drawSprite(78, 56, crate[0], crate_pal, 0, 8);
     drawSprite(110, 56, crate[1], crate_pal, 0, 8);
@@ -683,6 +686,7 @@ void levelSelect(){
     guiPrint(0, 2, tempText);
 
     int x=0,y=0;
+    int levToLoad = 1;
     for(int t=0; t<12; t++){
         int crtFrm = 0;
         if((stLev*12)+t < levNum) crtFrm = 1;
@@ -690,6 +694,9 @@ void levelSelect(){
         sprintf(tempText,"%02d",(stLev*12)+t+1);
         guiPrint(4+x*6, 4+y*6, tempText);
         if(++x==4){y++; x=0;}
+        if(x==levCursorX && y==levCursorY){
+            levToLoad = (stLev*12)+t+2;
+        }
     }
 
     drawSprite(24+levCursorX * 48, 16+levCursorY*48, cursor, cursor_pal, 0, 8);
@@ -716,9 +723,12 @@ void levelSelect(){
 
 
     if(_A_But[RELEASED]){
-        gameMode=1;
-        PS::playMusicStream("/boxpusher/splat.pcm"); // main music
-        loadSokLev(levNum);
+        if(levToLoad <= levNum){
+            gameMode=1;
+            PS::playMusicStream("/boxpusher/splat.pcm"); // main music
+            levNum = levToLoad;
+            loadSokLev(levNum);
+        }
     }
 
     if(_B_But[RELEASED]){
