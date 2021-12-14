@@ -1,31 +1,39 @@
 // =APP.customSetVariables({maxLogLength:100000})
-#define EMULATION
+//#define EMULATION
 #include <Pokitto.h>
 #include "timer_11u6x.h" // for screen fade timer
 #include "clock_11u6x.h" // for screen fade timer
 #include "PokittoCookie.h" // for save data
 #include <File> // for level loading
 #include <LibAudio> // for music playing
-#include "globals.h"
 #include "graphics.h"
+#include "globals.h"
 #include "fonts.h"
 #include "buttonhandling.h"
 #include "sounds.h"
+#include "screen.h"
 
 #define my_TIMER_16_0_IRQn 16          // for Timer setup
 
+void setVol(uint32_t v){
+    v = 255 - (192 - v) * (192 - v) * 255 / 36864;
+    uint32_t hwVolume = v ? (v>>1) | 0xF : 0;
+    uint32_t swVolume = v ? (v | 0xF) + 1 : 0;
+    SoftwareI2C(P0_4, P0_5).write(0x5e, hwVolume);
+    SoftwareI2C(P0_5, P0_4).write(0x5e, hwVolume); // fix for newer boards with i2C right way around
+}
+
 // print text
-void guiPrint(char x, char y, const char* text) {
+void guiPrint(char x, char y, const char* text, bool menuText=0) {
   uint8_t numChars = strlen(text);
   int charPos = x + 27 * y;
   for (int t = 0; t < numChars;) {
-    guiLineHasText[charPos/27] = 1;
+    guiLineHasText[charPos/27] = 1+menuText;
     guiBG[charPos++] = text[t++];
   }
 }
 
 void drawMenu(char x, char y, char x1, char y1) {
-
 
     for(int yy = y; yy <= y1; yy++){
         int yCount = 27*yy;
@@ -34,8 +42,10 @@ void drawMenu(char x, char y, char x1, char y1) {
                 guiBG[xx + yCount] = 2;
             }else if(yy==y1){
                 guiBG[xx + yCount] = 5;
+            }else if(yy==y+2){
+                guiBG[xx + yCount] = 10;
             }else{
-                guiBG[xx + yCount] = 9;
+                guiBG[xx + yCount] = 12;
             }
             if(xx==x){
                 guiBG[xx + yCount] = 7;
@@ -47,13 +57,94 @@ void drawMenu(char x, char y, char x1, char y1) {
     }
 
     guiBG[x +27*y ] = 1;
+    guiBG[x +27*(y+2) ] = 9;
+    guiBG[x1+27*(y+2) ] = 11;
     guiBG[x1+27*y ] = 3;
     guiBG[x1+27*y1] = 6;
     guiBG[x +27*y1] = 4;
 }
 
 
-#include "screen.h"
+
+void bigPrint(char x, char y, const char* text) {
+  uint8_t numChars = strlen(text);
+  for (int t = 0; t < numChars;) {
+    drawSprite(x+=16, y, bigfont[text[t++]-32], bigfont_pal, 0, 2);
+  }
+}
+
+// how manu digits in an int?
+int numPlaces (int n) {
+    if (n < 0) return 0;
+    if (n < 10) return 1;
+    if (n < 100) return 2;
+    if (n < 1000) return 3;
+    if (n < 10000) return 4;
+    if (n < 100000) return 5;
+    if (n < 1000000) return 6;
+    if (n < 10000000) return 7;
+    if (n < 100000000) return 8;
+    if (n < 1000000000) return 9;
+    /*      2147483647 is 2^31-1 - add more ifs as needed
+       and adjust this final return as well. */
+    return 10;
+}
+
+void render_level(){
+
+    if(renderSprites==true){
+        // Draw player
+        drawSprite(player.x - xScroll, player.y - yScroll, hero[(player.direction * 4)+(player.steps/8)], hero_pal, 0, 8);
+    
+        // Draw Boxes
+        for(int t=0; t<numBoxes; t++){
+            drawSprite(boxes[t].x - xScroll, boxes[t].y - yScroll, box[boxes[t].frame], box_pal, 0, 8);
+        }
+        
+        // walk icon
+        drawSprite(2, 176-16, step_icon_sml[0], step_icon_sml_pal, 0, 4);
+        drawSprite(34, 176-16, step_icon_sml[1], step_icon_sml_pal, 0, 4);
+        sprintf(tempText,":%d",totalSteps);
+        guiPrint(6,20, tempText, 0);
+    
+        sprintf(tempText,":%d.%d",totalSteps/2000,totalSteps/20);
+        guiPrint(6,21, tempText, 0);
+    
+        drawSprite(168, 176-16, step_icon_sml[2], step_icon_sml_pal, 0, 4);
+        drawSprite(201, 176-16, step_icon_sml[3], step_icon_sml_pal, 0, 4);
+    
+        sprintf(tempText,"%d:",moveNumber);
+        guiPrint(20-numPlaces(moveNumber),20, tempText);
+        sprintf(tempText,"%d:",levNum);
+        guiPrint(20-numPlaces(levNum),21, tempText);
+    }
+}
+
+void fadeOut(){
+    for(int t=255; t>0; t--) {
+        bright = t;
+        long int time_now = Pokitto::Core::getTime();
+        while(Pokitto::Core::getTime() < time_now + 3){
+            render_level();
+            Pokitto::Core::update(1);
+        }
+    }
+    bright=0;
+}
+
+void fadeIn(){
+
+    for(int t=0; t<255; t++) {
+        bright = t;
+        long int time_now = Pokitto::Core::getTime();
+        while(Pokitto::Core::getTime() < time_now + 4){
+            render_level();
+            Pokitto::Core::update(1);
+        }
+    }
+    bright=255;
+}
+
 
 using PC = Pokitto::Core;
 using PD = Pokitto::Display;
@@ -66,7 +157,7 @@ int countLevels(){
     strcat(levelPath, "boxpusher/1.txt");
 
     char line[80]={0};
-    int levCount = 0;
+    levCount = 0;
     File fr;
     if(fr.openRO(levelPath)){
 
@@ -89,7 +180,7 @@ int countLevels(){
 }
 
 void loadSokLev(int lev){
-    
+
     int ldOffset = 10; // how far in to the level data to place the new level to avoid over-scrolling the screen
     
     //notYet=10; // delay level completion by 10 frames
@@ -168,6 +259,7 @@ void loadSokLev(int lev){
                 }else{
                     //printf("length:%d\n", strlen(line));
                     for(x = 0; x< strlen(line); x++){
+                        Pokitto::Core::update(1);
                         switch(line[x]){
                             case '#': // wall
                                 curLevel[ldOffset+x+levWidth*(ldOffset+y)] = 1;
@@ -260,33 +352,54 @@ void checkComplete(){
         if(numButtons == boxesOnButtons){
             // Level is complete
             levNum++;
+            if(levNum > totalNumberOfLevels) levNum=0;
+            
             yScroll = player.y - 80;
             xScroll = player.x - 47;
-            // Draw player
-            drawSprite(player.x - xScroll, player.y - yScroll, hero[(player.direction * 4)+(player.steps/WALKSPEED)], hero_pal, 0, 8);
-            // Draw Boxes
-            for(int t=0; t<numBoxes; t++){
-                drawSprite(boxes[t].x - xScroll, boxes[t].y - yScroll, box[boxes[t].frame], box_pal, 0, 8);
-            }
+
+            render_level();
             PD::update();
+            
             fadeOut();
             
-            for(int t=0; t<100; t++){
-                wait_ms(5);
-                Pokitto::Core::update(1); // keep the sound playing during the delay
+            // clear the BG map
+            int num = levWidth*levHeight;
+            for(int t=0; t<num; t++){
+                curLevel[t] = 7;
             }
-            
+            spriteCount=0;
+            clearText();
+            numBoxes = 0;
+            numButtons = 0;
+            updateButtons();
+            renderSprites = false;
+            guiPrint(6,8,"Level Complete!");
+            sprintf(tempText,"Total Moves:%d",moveNumber);
+            guiPrint(6,10,tempText);
+            sprintf(tempText,"Next Level:%d",levNum);
+            guiPrint(6,12,tempText);
+            PD::update();
+
+            renderSprites = false;
+            fadeIn();
+
+            long int time_now = Pokitto::Core::getTime();
+            while(Pokitto::Core::getTime() < time_now + 1500){ // 1 second delay
+//                render_level();
+                Pokitto::Core::update(0);
+            }
+            fadeOut();
+            clearText();
+
+            bright = 0;
+
             loadSokLev(levNum);
             
             spriteCount=0;
             yScroll = player.y - 80;
             xScroll = player.x - 47;
-            // Draw player
-            drawSprite(player.x - xScroll, player.y - yScroll, hero[(player.direction * 4)+(player.steps/WALKSPEED)], hero_pal, 0, 8);
-            // Draw Boxes
-            for(int t=0; t<numBoxes; t++){
-                drawSprite(boxes[t].x - xScroll, boxes[t].y - yScroll, box[boxes[t].frame], box_pal, 0, 8);
-            }
+            renderSprites = true;
+            render_level();
             player.direction=1;//face forward
             PD::update();
             fadeIn();
@@ -303,9 +416,7 @@ int boxHere(int x, int y){
     return bx;
 }
 
-
 void playLevel(){
-
 
         if(player.walking==0){
             if( _B_But[NEW] && moveNumber >0){
@@ -449,6 +560,9 @@ void playLevel(){
                     player.steps+=STEPSIZE;
                     break;
             }
+            if(player.steps%16==0){
+                totalSteps++;
+            }
             // if walked a full tile, stop
             if(player.steps==32){
                 player.steps=0;
@@ -464,20 +578,20 @@ void playLevel(){
         yScroll = player.y - 80;
         xScroll = player.x - 47;
 
-        // Draw player
-        drawSprite(player.x - xScroll, player.y - yScroll, hero[(player.direction * 4)+(player.steps/8)], hero_pal, 0, 8);
-        //if(player.walking==true && (player.steps&7)==0){player.stepFrame++; if(player.stepFrame>=4)player.stepFrame=0;}
-        
-        // Draw Boxes
-        for(int t=0; t<numBoxes; t++){
-            drawSprite(boxes[t].x - xScroll, boxes[t].y - yScroll, box[boxes[t].frame], box_pal, 0, 8);
-        }
+        render_level();        
 
 }
 
-void audioTimer(void){
+//int updated;
+void screenTimer(void){
 	if (Chip_TIMER_MatchPending(LPC_TIMER16_0, 1)) {
-
+/*
+        if(++updated == 2){
+            updated = 0;
+            writeDAC( myMixSound() );
+            currentBuffer = ((++audioOffset)&=2047)/audioBufferSize;
+        }
+*/
         if(++lightCount==255)lightCount=0;
         if(lightCount < bright){
             backlight = 1;
@@ -487,6 +601,7 @@ void audioTimer(void){
 
         // last thing we reset the time
     	Chip_TIMER_ClearMatch(LPC_TIMER16_0, 1);
+
     }
 
 }
@@ -510,7 +625,7 @@ void initTimer(uint32_t sampleRate){
 	/* Clear both timers of any pending interrupts */
 	NVIC_ClearPendingIRQ((IRQn_Type)my_TIMER_16_0_IRQn);
     /* Redirect IRQ vector - Jonne*/
-    NVIC_SetVector((IRQn_Type)my_TIMER_16_0_IRQn, (uint32_t)&audioTimer);
+    NVIC_SetVector((IRQn_Type)my_TIMER_16_0_IRQn, (uint32_t)&screenTimer);
 	/* Enable both timer interrupts */
 	NVIC_EnableIRQ((IRQn_Type)my_TIMER_16_0_IRQn);
 }
@@ -536,8 +651,9 @@ void titleScreen(){
     for(int t=0; t<7; t++){
         drawSprite(t*32, 72, horizon[t], horizon_pal, 0, 8);
     }
-    guiPrint(7,6, "Curtis Nerdly");
-    guiPrint(5,8, "Warehouse Manager");
+    guiPrint(7,4, "CURTIS NERDLY:");
+    bigPrint(24, 44, "WAREHOUSE");
+    bigPrint(40, 64, "MANAGER");
 
    if(intro_timer <= 80){
         ts.px = easeDirect(intro_timer, -64, 63, 80);
@@ -637,35 +753,59 @@ void titleScreen(){
 
 
 void initTitleScreen(){
+
+    Pokitto::Display::lineFillers[0] = myBGFiller2;
+    Pokitto::Display::lineFillers[1] = spritesToLine;
+    Pokitto::Display::lineFillers[2] = GUILine;
+
+    // clear the levelmap data, need an empty map for the level select screen
+    int num = levWidth*levHeight;
+    for(int t=0; t<num; t++){
+        curLevel[t] = 0;
+    }
+
     ts.px=0;
     ts.py=80;
     ts.frm=0;
     gameMode=3;
     intro_timer = 0; // for timing animations etc.
-    PS::playMusicStream("/boxpusher/binky.pcm"); // titlescreen
+    totalSteps = 0;
+
+    sprintf(currentTune,"%s","/boxpusher/binky.pcm");
+    PS::playMusicStream(currentTune); // main music
 
     // grab the current highest level unlocked
     levNum=1;
     cookie.loadCookie();
     levNum = cookie.level;
     if(levNum <1)levNum=1;
-    
+//    levNum = 141;
+    worldOffset = 0;
+    stLev = (levNum-1)/12;
 }
 
 void worldSelect(){
 
-    sprintf(tempText,"%02d",stLev);
-    guiPrint(13, 15, tempText);
+    //sprintf(tempText,"%02d",stLev);
+    //guiPrint(13, 15, tempText);
+    bigPrint(-2, 16, "SELECT CRATE");
 
-    drawSprite(78, 56, crate[0], crate_pal, 0, 8);
-    drawSprite(110, 56, crate[1], crate_pal, 0, 8);
-    drawSprite(78, 88, crate[2], crate_pal, 0, 8);
-    drawSprite(110, 88, crate[3], crate_pal, 0, 8);
-
+    int numWorlds = levNum/12;
+    for(int t=0; t<=numWorlds; t++){
+        long int x = (78-(worldOffset>>8)) + t*220;
+        if(x>-64 && x<220){
+            drawSprite(x, 56, crate[0], crate_pal, 0, 8);
+            drawSprite(x+32, 56, crate[1], crate_pal, 0, 8);
+            drawSprite(x, 88, crate[2], crate_pal, 0, 8);
+            drawSprite(x+32, 88, crate[3], crate_pal, 0, 8);
+            sprintf(tempText,"%03d",t+1);
+            bigPrint(x-8, 93, tempText);
+        }
+    }
 
     if(_Right_But[NEW]){
         stLev += 1;
-        if(stLev > levNum/12) stLev = levNum/12;
+        if(stLev > (levNum-1)/12) stLev = (levNum-1)/12;
     }
 
     if(_Left_But[NEW]){
@@ -676,30 +816,33 @@ void worldSelect(){
     if(_A_But[RELEASED]){
         gameMode=4;
     }
-    
+
+    worldOffset += ((((stLev<<8)*220)-worldOffset)/16);
+
 }
 
 void levelSelect(){
     
     //guiPrint(0,4, "Select Level");
-    sprintf(tempText,"%002d",levNum);
-    guiPrint(0, 2, tempText);
+//    sprintf(tempText,"%002d",levNum);
+//    guiPrint(0, 2, tempText);
 
     int x=0,y=0;
     int levToLoad = 1;
     for(int t=0; t<12; t++){
         int crtFrm = 0;
         if((stLev*12)+t < levNum) crtFrm = 1;
-        drawSprite((x*48)+24, (y*48)+16, smlcrate[crtFrm], smlcrate_pal, 0, 8);
-        sprintf(tempText,"%02d",(stLev*12)+t+1);
-        guiPrint(4+x*6, 4+y*6, tempText);
-        if(++x==4){y++; x=0;}
+        drawSprite((x*48)+20, (y*48)+16, smlcrate[crtFrm], smlcrate_pal, 0, 8);
+        sprintf(tempText,"%03d",(stLev*12)+t+1);
+        guiPrint(3+x*6, 6+y*6, tempText);
         if(x==levCursorX && y==levCursorY){
-            levToLoad = (stLev*12)+t+2;
+            levToLoad = (stLev*12)+t+1;
         }
+        if(++x==4){y++; x=0;}
     }
 
-    drawSprite(24+levCursorX * 48, 16+levCursorY*48, cursor, cursor_pal, 0, 8);
+
+    drawSprite(20+levCursorX * 48, 16+levCursorY*48, cursor, cursor_pal, 0, 8);
 
     if(_Up_But[NEW]){
         levCursorY--;
@@ -725,7 +868,8 @@ void levelSelect(){
     if(_A_But[RELEASED]){
         if(levToLoad <= levNum){
             gameMode=1;
-            PS::playMusicStream("/boxpusher/splat.pcm"); // main music
+            sprintf(currentTune,"%s","/boxpusher/splat.pcm");
+            PS::playMusicStream(currentTune); // main music
             levNum = levToLoad;
             loadSokLev(levNum);
         }
@@ -750,31 +894,35 @@ int main() {
         updateButtons();
     }
 
-
     Pokitto::Display::lineFillers[0] = myBGFiller2;
     Pokitto::Display::lineFillers[1] = spritesToLine;
     Pokitto::Display::lineFillers[2] = GUILine;
 
-    cookie.begin("LEVEL", sizeof(cookie), (char*)&cookie);
+    cookie.begin("NERDLY", sizeof(cookie), (char*)&cookie);
 
-    int myVolume = 5;
     cookie.loadCookie();
     myVolume = cookie.volume;
     //if(myVolume < 5)
-    myVolume=3;
+    //myVolume=3;
+
+//    cookie.isEmu = 1;  // save this the first time using the emulator, but never on a real pokitto.
+
     cookie.saveCookie();
     #ifndef POK_SIM
         swvolpot.write(0x5e, myVolume);
     #endif
+    //display.print(x-1,y-20,(int)sound.getVolume());
 
 
     uint32_t frameCount=0;
     uint8_t line[256];
 
-    #ifndef EMULATION
+    if(!cookie.isEmu){
         initTimer(32000); // for screen fades
-    #endif
-    
+    }
+
+
+
 //    PS::playMusicStream("/boxpusher/binky.pcm"); // titlescreen
 //    PS::playMusicStream("/boxpusher/splat.pcm"); // main music
 
@@ -789,7 +937,7 @@ int main() {
         spriteCount=0;
         clearText();
         updateButtons();
-
+ 
         // clear the old text buffer
         for(int t=0; t<22; t++){
             guiLineHasText[t] = 0;
@@ -804,10 +952,6 @@ int main() {
                 if(gamePaused == false){
                     playLevel();
                 }
-                sprintf(tempText,"Moves [%03d] ",moveNumber);
-                guiPrint(0,1, tempText);
-                sprintf(tempText,"Level [%03d] ",levNum);
-                guiPrint(0,2, tempText);
                 if(_C_But[RELEASED]){
                     gamePaused = 1-gamePaused;
                 }
@@ -825,13 +969,66 @@ int main() {
 
         if(gamePaused==true){
             // paused menu goes here.
+            drawMenu(3, 3, 23, 18);
+            guiPrint(10,4, "PAUSED",1);
+
+            guiPrint(6,8,  "CONTINUE",1);
+            guiPrint(6,10, "RESTART",1);
+            sprintf(tempText,"VOLUME:%d ",myVolume);
+            guiPrint(6,12, tempText,1);
+            guiPrint(6,14, "QUIT",1);
+
+            guiPrint(5,8+2*pm.item,">",1);
+
+            if(_Up_But[NEW] && pm.item>0) pm.item--;
+            if(_Down_But[NEW] && pm.item<3) pm.item++;
+
+            if(_A_But[RELEASED]){
+                switch(pm.item){
+                    case 0: // return to game
+                        cookie.volume = myVolume;
+                        cookie.saveCookie();
+                        gamePaused = 0;
+                    break;
+                    case 1:
+                        loadSokLev(levNum);
+                        gamePaused = 0;
+                        break;
+                    case 3: // return to titleScreen
+                        cookie.volume = myVolume;
+                        cookie.saveCookie();
+                        gamePaused = 0;
+                        gameMode = 0;
+                    break;
+                }
+            }
+
+            if(_Right_But[RELEASED]){
+                switch(pm.item){
+                    case 2: // volume
+                        if(myVolume < 8) myVolume++;
+                        setVol(myVolume);
+                    break;
+                }
+            }
+
+            if(_Left_But[RELEASED]){
+                switch(pm.item){
+                    case 2: // volume
+                        if(myVolume > 0) myVolume--;
+                        setVol(myVolume);
+                    break;
+                }
+            }
+
+/*
+*/
+
         }
 
-        
-        sprintf(tempText,"  FPS [%03d] ",fpsCount);
-        guiPrint(0,0, tempText);
+//        sprintf(tempText,"  FPS [%03d] ",fpsCount);
+//        guiPrint(0,0, tempText);
 
- 
         if(PC::getTime() >= lastMillis+1000){
             lastMillis = PC::getTime();
             fpsCount = fpsCounter;

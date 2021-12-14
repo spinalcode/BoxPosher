@@ -26,7 +26,7 @@
 #define PROJ_AUD_FREQ 22050
 // Automatically restart streaming music when it ends.
 // Optional. Default is 1.
-#define PROJ_STREAM_LOOP 1
+//#define PROJ_STREAM_LOOP 1
 // Tell the sound system which SD library to use.
 // If you use one of these libraries, it's important that sound
 // is streamed using the same one.

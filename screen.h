@@ -36,31 +36,13 @@ void drawSprite(int x, int y, const uint8_t *imageData,const uint16_t *paletteDa
     }
 }
 
-void fadeOut(){
-    for(int t=255; t>0; t--) {
-        bright = t;
-        wait_ms(3);
-        Pokitto::Core::update(1);
-    }
-    bright=0;
-}
-
-void fadeIn(){
-    for(int t=0; t<256; t++) {
-        bright = t;
-        wait_ms(3);
-        Pokitto::Core::update(1);
-    }
-    bright=255;
-}
-
 void spritesToLine(std::uint8_t* line, std::uint32_t y, bool skip){
 
     if(spriteLine[y]==0) return;
 
     auto scanLine = &Pokitto::Display::palette[32]; // start 32 pixels in because of underflow
     #define width 32
-    #define height 32
+    //#define height 32
     
     int y2 = y;
 
@@ -68,29 +50,86 @@ void spritesToLine(std::uint8_t* line, std::uint32_t y, bool skip){
     if(spriteCount>=0){
         for(int32_t spriteIndex = 1; spriteIndex<=spriteCount; spriteIndex++){
             auto &sprite = sprites[spriteIndex];
-            if((int)y >= sprite.y && (int)y < sprite.y + 32){
+            if((int)y >= sprite.y && (int)y < sprite.y + sprite.imageData[1]){
                 if(sprite.x>-width && sprite.x<PROJ_LCDWIDTH){
-                    uint32_t so = 2+(width * (y2-sprite.y));
                     auto sl = &scanLine[sprite.x];
                     auto palette = sprite.paletteData;
-                    if(sprite.hFlip){
-                        auto si = &sprite.imageData[so+31];
-                        #define midLoop()\
-                            if(auto pixel = *si) *sl = palette[pixel];\
-                            si--; sl++;
-                        midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); 
-                        midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); 
-                        midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); 
-                        midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); midLoop(); 
-                    }else{
-                        auto si = &sprite.imageData[so];
-                        #define midLoop1()\
-                            if(auto pixel = *si) *sl = palette[pixel];\
-                            si++; sl++;
-                        midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); 
-                        midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); 
-                        midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); 
-                        midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); midLoop1(); 
+
+                    if(sprite.bit==2){
+                        uint32_t so = 2+((width>>2) * (y2-sprite.y));
+                        if(sprite.hFlip){
+                            auto si = &sprite.imageData[so+7];
+                            auto pixel = *si;
+                            #define midLoop2()\
+                                if(pixel = *si&3) *sl = palette[pixel];\
+                                sl++;\
+                                if(pixel = *si>>2&3) *sl = palette[pixel];\
+                                sl++;\
+                                if(pixel = *si>>4&3) *sl = palette[pixel];\
+                                sl++;\
+                                if(pixel = *si>>6&3) *sl = palette[pixel];\
+                                si--; sl++;
+                            midLoop2(); midLoop2(); midLoop2(); midLoop2(); midLoop2(); midLoop2(); midLoop2(); midLoop2(); 
+                        }else{
+                            auto si = &sprite.imageData[so];
+                            auto pixel = *si;
+                            #define midLoop21()\
+                                if(pixel = *si>>6&3) *sl = palette[pixel];\
+                                sl++;\
+                                if(pixel = *si>>4&3) *sl = palette[pixel];\
+                                sl++;\
+                                if(pixel = *si>>2&3) *sl = palette[pixel];\
+                                sl++;\
+                                if(pixel = *si&3) *sl = palette[pixel];\
+                                si++; sl++;
+                            midLoop21(); midLoop21(); midLoop21(); midLoop21(); midLoop21(); midLoop21(); midLoop21(); midLoop21(); 
+                        }
+                    }
+
+                    if(sprite.bit==4){
+                        uint32_t so = 2+((width>>1) * (y2-sprite.y));
+                        if(sprite.hFlip){
+                            auto si = &sprite.imageData[so+31];
+                            #define midLoop4()\
+                                if(auto pixel = *si&15) *sl = palette[pixel];\
+                                sl++;\
+                                if(auto pixel = *si>>4) *sl = palette[pixel];\
+                                si--; sl++;
+                            midLoop4(); midLoop4(); midLoop4(); midLoop4(); midLoop4(); midLoop4(); midLoop4(); midLoop4(); 
+                            midLoop4(); midLoop4(); midLoop4(); midLoop4(); midLoop4(); midLoop4(); midLoop4(); midLoop4(); 
+                        }else{
+                            auto si = &sprite.imageData[so];
+                            #define midLoop41()\
+                                if(auto pixel = *si>>4) *sl = palette[pixel];\
+                                sl++;\
+                                if(auto pixel = *si&15) *sl = palette[pixel];\
+                                si++; sl++;
+                            midLoop41(); midLoop41(); midLoop41(); midLoop41(); midLoop41(); midLoop41(); midLoop41(); midLoop41(); 
+                            midLoop41(); midLoop41(); midLoop41(); midLoop41(); midLoop41(); midLoop41(); midLoop41(); midLoop41(); 
+                        }
+                    }
+
+                    if(sprite.bit==8){
+                        uint32_t so = 2+(width * (y2-sprite.y));
+                        if(sprite.hFlip){
+                            auto si = &sprite.imageData[so+31];
+                            #define midLoop8()\
+                                if(auto pixel = *si) *sl = palette[pixel];\
+                                si--; sl++;
+                            midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); 
+                            midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); 
+                            midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); 
+                            midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); midLoop8(); 
+                        }else{
+                            auto si = &sprite.imageData[so];
+                            #define midLoop81()\
+                                if(auto pixel = *si) *sl = palette[pixel];\
+                                si++; sl++;
+                            midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); 
+                            midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); 
+                            midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); 
+                            midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); midLoop81(); 
+                        }
                     }
                     
                 } // if X

@@ -8,6 +8,13 @@
 #define WALL 1
 #define BUTTON 4
 
+int myVolume = 5;
+char currentTune[128];
+uint8_t hwVol;
+
+long int totalSteps;
+bool renderSprites=true;
+
 int xScroll = 0;
 int yScroll = 0;
 int numButtons;
@@ -47,10 +54,21 @@ class GameCookie : public Pokitto::Cookie {
 public:
     int level;
     int volume=10;
+    int isEmu;
 };
 /* create instance */
 GameCookie cookie;
 int currentLevel=0;
+int levCount = 0;
+
+
+long int worldOffset;
+
+struct PAUSEMENU_STUFF{
+    int item;
+    bool volType;
+} pm;
+
 
 #ifndef POK_SIM
 // set hardware volume quite low
@@ -99,4 +117,5 @@ struct SPRITE_DATA {
 } sprites[NUMSPRITES];
 int spriteCount = 0;
 int spriteLine[176];
+
 
