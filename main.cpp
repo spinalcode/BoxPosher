@@ -154,7 +154,7 @@ using PS = Pokitto::Sound;
 int countLevels(){
     
     char levelPath[64]={0};
-    strcat(levelPath, "boxpusher/1.txt");
+    strcat(levelPath, "boxpusher/1.bin");
 
     char line[80]={0};
     levCount = 0;
@@ -195,7 +195,7 @@ void loadSokLev(int lev){
     numButtons = 0;
 
     char levelPath[64]={0};
-    strcat(levelPath, "boxpusher/1.txt");
+    strcat(levelPath, "boxpusher/1.bin");
 
     char line[80]={0};
     File fr;
@@ -355,7 +355,7 @@ void checkComplete(){
             if(levNum > totalNumberOfLevels) levNum=0;
             
             yScroll = player.y - 80;
-            xScroll = player.x - 47;
+            xScroll = player.x - 94;
 
             render_level();
             PD::update();
@@ -397,7 +397,7 @@ void checkComplete(){
             
             spriteCount=0;
             yScroll = player.y - 80;
-            xScroll = player.x - 47;
+            xScroll = player.x - 94;
             renderSprites = true;
             render_level();
             player.direction=1;//face forward
@@ -576,7 +576,7 @@ void playLevel(){
         }
 
         yScroll = player.y - 80;
-        xScroll = player.x - 47;
+        xScroll = player.x - 94;
 
         render_level();        
 
@@ -637,13 +637,13 @@ float easeDirect(float t, float b, float c, float d){
 
 void titleScreen(){
 /*
- ______  ____  ______  _             ___  _____   __  ____     ___    ___  ____  
-|      ][    ]|      ]| ]           /  _]/ ___/  /  ]|    \   /  _]  /  _]|    \ 
-|      | |  [ |      || |          /  [_(   \_  /  / |  D  ) /  [_  /  [_ |  _  ]
-[_]  [_] |  | [_]  [_]| [___      [    _]\__  ]/  /  |    / [    _][    _]|  |  |
-  |  |   |  |   |  |  |     ]     |   [_ /  \ /   \_ |    \ |   [_ |   [_ |  |  |
-  |  |   ]  [   |  |  |     |     |     ]\    \     ||  .  ]|     ]|     ]|  |  |
-  [__]  [____]  [__]  [_____]     [_____] \___]\____][__]\_][_____][_____][__]__]
+ ______  ____  ______  _        ___        _____   __  ____     ___    ___  ____  
+|      ][    ]|      ]| ]      /  _]      / ___/  /  ]|    \   /  _]  /  _]|    \ 
+|      | |  [ |      || |     /  [_      (   \_  /  / |  D  ) /  [_  /  [_ |  _  ]
+[_]  [_] |  | [_]  [_]| [___ [    _]      \__  ]/  /  |    / [    _][    _]|  |  |
+  |  |   |  |   |  |  |     ]|   [_       /  \ /   \_ |    \ |   [_ |   [_ |  |  |
+  |  |   ]  [   |  |  |     ||     ]      \    \     ||  .  ]|     ]|     ]|  |  |
+  [__]  [____]  [__]  [_____][_____]       \___]\____][__]\_][_____][_____][__]__]
 */
 
     int midScreen = 72; // 88-16
@@ -655,7 +655,10 @@ void titleScreen(){
     bigPrint(24, 44, "WAREHOUSE");
     bigPrint(40, 64, "MANAGER");
 
+
    if(intro_timer <= 80){
+        guiPrint(5,19, "Game By : Spinal");
+        guiPrint(2,20, "http://spinalcode.co.uk");
         ts.px = easeDirect(intro_timer, -64, 63, 80);
         ts.py=88;
         if(ts.dir==0){
@@ -682,6 +685,8 @@ void titleScreen(){
 
 
     if(intro_timer >=100 && intro_timer <180){
+        guiPrint(5,19, "Music By : Jayenkai");
+        guiPrint(5,20, "https://socoder.net");
         ts.px = easeDirect(intro_timer - 100, -64, 63, 80);
         if(ts.dir==0){ // 62
             drawSprite(midScreen-74-ts.px, ts.py, hero_stack[2], hero_stack_pal, 0, 8); // Player
